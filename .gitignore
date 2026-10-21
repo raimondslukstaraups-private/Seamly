@@ -1,0 +1,15 @@
+# Local Claude Code / editor settings
+.claude/
+.vscode/
+.idea/
+
+# OS clutter
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# Exports made while testing
+seamly-*.svg
+seamly-*.png
+seamly-*.css
+seamly-project*.json

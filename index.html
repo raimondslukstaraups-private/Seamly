@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Seamly – seamless pattern maker</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <aside id="sidebar">
+    <header class="brand">
+      <h1>Seamly</h1>
+      <p>Seamless, repeating pattern maker</p>
+    </header>
+
+    <!-- 1. Motifs -->
+    <section class="panel">
+      <h2>1. Motifs</h2>
+      <label id="dropzone" class="dropzone">
+        <input id="fileInput" type="file" accept=".svg,image/svg+xml" multiple hidden>
+        <strong>Drop SVG files here</strong>
+        <span>or click to choose</span>
+      </label>
+      <ul id="motifList" class="motif-list"></ul>
+    </section>
+
+    <!-- 2. Tile -->
+    <section class="panel">
+      <h2>2. Tile &amp; spacing</h2>
+      <div class="row">
+        <label>Units
+          <select id="unit">
+            <option value="mm">mm</option>
+            <option value="cm" selected>cm</option>
+            <option value="in">inch</option>
+            <option value="px">px</option>
+          </select>
+        </label>
+      </div>
+      <div class="row two">
+        <label>Tile width <input id="tileW" type="number" min="0.1" step="any"></label>
+        <label>Tile height <input id="tileH" type="number" min="0.1" step="any"></label>
+      </div>
+      <div class="row two">
+        <label>Min. gap <input id="gap" type="number" min="0" step="any"></label>
+        <label>Background
+          <span class="color-row">
+            <input id="bg" type="color" value="#fdf6ec">
+            <label class="check"><input id="bgNone" type="checkbox"> none</label>
+          </span>
+        </label>
+      </div>
+      <p class="hint">The tile is the unit that repeats. Motifs that cross an edge come back in on the opposite side.</p>
+    </section>
+
+    <!-- 3. Scatter -->
+    <section class="panel">
+      <h2>3. Scatter</h2>
+      <div class="row two">
+        <label>Seed
+          <span class="seed-row">
+            <input id="seed" type="number" step="1">
+            <button id="shuffle" type="button" title="New random seed">🎲</button>
+          </span>
+        </label>
+        <label>Max motifs <input id="maxCount" type="number" min="0" step="1" title="0 = fill the tile"></label>
+      </div>
+      <div class="row two">
+        <label>Overlap check
+          <select id="collision">
+            <option value="shape" selected>Real shape</option>
+            <option value="circle">Circle (fast)</option>
+          </select>
+        </label>
+        <label>Effort
+          <select id="effort">
+            <option value="300">Quick</option>
+            <option value="1000" selected>Normal</option>
+            <option value="4000">Dense</option>
+          </select>
+        </label>
+      </div>
+      <label class="check"><input id="ensureEach" type="checkbox" checked> Use every motif at least once</label>
+      <div class="row buttons">
+        <button id="generate" class="primary" type="button">Generate</button>
+        <button id="fillGaps" type="button" title="Keep current motifs, add more in free space">Fill gaps</button>
+        <button id="clearAll" type="button">Clear</button>
+      </div>
+      <p id="status" class="status">Add some SVG files to start.</p>
+    </section>
+
+    <!-- 4. Export -->
+    <section class="panel">
+      <h2>4. Export</h2>
+      <div class="row two">
+        <label>Print DPI <input id="dpi" type="number" min="10" max="1200" step="1"></label>
+        <label>&nbsp;<span id="tilePxInfo" class="hint inline"></span></label>
+      </div>
+      <div class="btn-grid">
+        <button id="exportTileSvg" type="button">Tile · SVG</button>
+        <button id="exportTilePng" type="button">Tile · PNG</button>
+      </div>
+      <h3>Full output size</h3>
+      <div class="row two">
+        <label>Width <input id="outW" type="number" min="0.1" step="any"></label>
+        <label>Height <input id="outH" type="number" min="0.1" step="any"></label>
+      </div>
+      <p id="outInfo" class="hint"></p>
+      <div class="btn-grid">
+        <button id="exportOutSvg" type="button">Output · SVG</button>
+        <button id="exportOutPng" type="button">Output · PNG</button>
+      </div>
+      <h3>Other</h3>
+      <div class="btn-grid">
+        <button id="copyCss" type="button">Copy CSS background</button>
+        <button id="saveProject" type="button">Save project</button>
+        <label class="button-like">Open project<input id="openProject" type="file" accept=".json,application/json" hidden></label>
+      </div>
+    </section>
+
+    <footer class="foot">Everything runs in your browser — files never leave your computer.</footer>
+  </aside>
+
+  <main id="main">
+    <div class="toolbar">
+      <label>Preview
+        <select id="repeat">
+          <option value="1">1 × 1 (tile)</option>
+          <option value="2">2 × 2</option>
+          <option value="3" selected>3 × 3</option>
+          <option value="4">4 × 4</option>
+          <option value="5">5 × 5</option>
+        </select>
+      </label>
+      <label>Zoom <input id="zoom" type="range" min="0.2" max="3" step="0.05" value="1"></label>
+      <label class="check"><input id="seams" type="checkbox" checked> Show tile edges</label>
+      <span class="spacer"></span>
+      <span class="hint inline">Click a motif to select · drag to move · <kbd>Del</kbd> remove · <kbd>[</kbd> <kbd>]</kbd> rotate</span>
+    </div>
+    <div id="stage" class="stage">
+      <svg id="preview" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+        <defs id="pvDefs"></defs>
+        <defs>
+          <g id="pvTile"></g>
+          <g id="pvOverlay"></g>
+        </defs>
+        <rect id="pvBg" x="0" y="0"></rect>
+        <g id="pvCopies"></g>
+        <g id="pvSeams"></g>
+      </svg>
+      <div id="empty" class="empty">
+        <p><strong>No motifs yet.</strong></p>
+        <p>Drop SVG files onto the left panel, then press <em>Generate</em>.</p>
+      </div>
+    </div>
+  </main>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="js/util.js"></script>
+  <script src="js/motifs.js"></script>
+  <script src="js/collision.js"></script>
+  <script src="js/layout.js"></script>
+  <script src="js/render.js"></script>
+  <script src="js/export.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
