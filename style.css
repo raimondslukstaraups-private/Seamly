@@ -108,6 +108,8 @@ button:disabled { opacity: 0.5; cursor: default; }
 .mode-panel.active { display: block; }
 .mode-panel .check { margin-top: 4px; }
 .dropzone.small { padding: 10px; margin-bottom: 8px; }
+button.full { width: 100%; margin-bottom: 8px; }
+#tplDetect[hidden], #tplExactInfo[hidden], #tplGroupsRow[hidden] { display: none; }
 .dropzone.small span { font-size: 11px; }
 .tpl-thumb { display: block; margin-bottom: 4px; }
 .tpl-thumb img { max-width: 100%; max-height: 90px; border-radius: 4px; border: 1px solid var(--line); background: #fff; }

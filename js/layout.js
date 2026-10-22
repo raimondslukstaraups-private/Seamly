@@ -319,24 +319,62 @@ function templateLayout(o) {
   const total = active.reduce((sum, m) => sum + m.settings.weight, 0);
   const sym = () => rng() * 2 - 1;
 
+  // Colour groups (from Seamly templates): every spot of a group gets the same motif.
+  // Groups are matched by size too: the group with the biggest spots gets the biggest motif.
+  let groupMotif = null;
+  if (t.useGroups && spots.some(sp => sp.g !== undefined)) {
+    const sizes = new Map();
+    for (const sp of spots) {
+      const e = sizes.get(sp.g) || { sum: 0, n: 0 };
+      e.sum += sp.area;
+      e.n++;
+      sizes.set(sp.g, e);
+    }
+    const order = [...sizes.entries()].sort((a, b) => b[1].sum / b[1].n - a[1].sum / a[1].n).map(([g]) => g);
+    groupMotif = new Map();
+    // A group made from a motif that is still loaded gets that motif back…
+    const byName = new Map(active.map(m => [m.name, m]));
+    for (const sp of spots) {
+      if (sp.name && byName.has(sp.name) && !groupMotif.has(sp.g)) groupMotif.set(sp.g, byName.get(sp.name));
+    }
+    // …the other groups get the remaining motifs, biggest group to biggest motif.
+    const taken = new Set(groupMotif.values());
+    const rest = active.filter(m => !taken.has(m));
+    let k = 0;
+    for (const g of order) {
+      if (groupMotif.has(g)) continue;
+      groupMotif.set(g, rest.length ? rest[k % rest.length] : active[k % active.length]);
+      k++;
+    }
+    if (order.length > active.length) notes.push(`The template has ${order.length} colour groups but only ${active.length} motifs — some motifs are used for more than one group.`);
+  }
+
   const instances = spots.map((sp, rank) => {
-    // Rank → motif, using cumulative weights (largest motifs take the largest spots).
-    const q = (rank + 0.5) / spots.length * total;
-    let acc = 0, m = active[active.length - 1];
-    for (const cand of active) { acc += cand.settings.weight; if (q <= acc) { m = cand; break; } }
+    let m = groupMotif && groupMotif.get(sp.g);
+    if (!m) {
+      // Rank → motif, using cumulative weights (largest motifs take the largest spots).
+      const q = (rank + 0.5) / spots.length * total;
+      let acc = 0;
+      m = active[active.length - 1];
+      for (const cand of active) { acc += cand.settings.weight; if (q <= acc) { m = cand; break; } }
+    }
     const st = m.settings;
     const mLong = Math.max(m.natW, m.natH), mShort = Math.min(m.natW, m.natH);
     const s = (t.fitMode === 'area'
       ? Math.sqrt((sp.len * sp.wid * k * k) / (m.natW * m.natH))
       : Math.min(sp.len * k / mLong, sp.wid * k / mShort)) * t.scale / 100 * (o.scale || 1);
-    let r = 0;
-    if (t.useAngle && !sp.round) r = sp.angle + (m.natW >= m.natH ? 0 : 90);
+    // A spot with a known angle sets the rotation (plus the motif's base rotation);
+    // the motif's random rotation only applies where the spot has no angle.
+    const jitter = sym() * st.rotVar;
+    const r = t.useAngle && !sp.round
+      ? sp.angle + (m.natW >= m.natH ? 0 : 90) + st.rot
+      : st.rot + jitter;
     const inst = {
       m: m.id,
       x: wrap(sp.x * kx, o.W),
       y: wrap(sp.y * ky, o.H),
       s: Math.max(0.01, s),
-      r: wrap(r + st.rot + sym() * st.rotVar, 360),
+      r: wrap(r, 360),
       f: st.flip && rng() < 0.5 ? -1 : 1,
       h: Math.round(sym() * st.hueVar),
     };
@@ -373,13 +411,14 @@ function shrinkToFit(instances, motifs, W, H, gap, collision, rounds = 15) {
   return shrunk;
 }
 
-/** Checker containing every instance except `skip` — used while dragging one motif. */
+/** Checker containing every instance except `skip` (an index or a Set of them) — used while dragging. */
 function checkerWithout(instances, skip, motifs, W, H, gap, collision) {
   const byId = new Map(motifs.map(m => [m.id, m]));
+  const skipSet = skip instanceof Set ? skip : new Set([skip]);
   const checker = makeChecker(collision, W, H, gap);
   instances.forEach((inst, i) => {
     const m = byId.get(inst.m);
-    if (i !== skip && m) checker.add(checker.footprint(inst, m));
+    if (!skipSet.has(i) && m) checker.add(checker.footprint(inst, m));
   });
   return checker;
 }

@@ -5,10 +5,102 @@
 
 const TEMPLATE_RES = 1000; // analysis resolution (longest side, px)
 
+// One colour per motif type in exported templates; same colour = same group on import.
+const GROUP_COLORS = ['#e4572e', '#2e86ab', '#f3a712', '#3bb273', '#7768ae', '#e15a97', '#1b998b', '#8d6a9f',
+  '#c5283d', '#255f85'];
+
+// ---------------------------------------------------------------- export a layout as a template
+
+/**
+ * The current layout as a template SVG: every motif becomes a placeholder shape, coloured by motif type.
+ * Each shape is tagged (data-seamly-spot) so Seamly can read it back exactly — even after the shapes
+ * were moved or resized in another editor.
+ * @param {'ellipse'|'circle'|'silhouette'} shape
+ */
+function layoutTemplateSvg(p, shape) {
+  const inst = visibleInstances(p);
+  const byId = new Map(p.motifs.map(m => [m.id, m]));
+  const group = new Map(p.motifs.map((m, i) => [m.id, i]));
+  const { W, H } = p;
+  const color = g => GROUP_COLORS[g % GROUP_COLORS.length];
+  let defs = '', body = '';
+  if (shape === 'silhouette') {
+    defs += motifDefsMarkup(usedMotifs(p, inst));
+    for (const g of new Set(inst.map(i => group.get(i.m)))) {
+      defs += `<filter id="solid-${g}" color-interpolation-filters="sRGB"><feFlood flood-color="${color(g)}"/>` +
+        `<feComposite in2="SourceAlpha" operator="in"/></filter>`;
+    }
+  }
+  for (const it of inst) {
+    const m = byId.get(it.m);
+    const g = group.get(it.m);
+    const w = m.natW * it.s, h = m.natH * it.s;
+    wrapOffsets(it, m, W, H).forEach(([ox, oy]) => {
+      // The copies drawn across the edges are only for the picture; the main one carries the data.
+      const tag = ox || oy ? 'data-seamly-copy="1"'
+        : `data-seamly-spot="1" data-seamly-group="${g}" data-seamly-motif="${escapeXml(m.name)}"`;
+      const tr = `translate(${n(it.x + ox)} ${n(it.y + oy)}) rotate(${n(it.r)})`;
+      if (shape === 'silhouette') {
+        body += useMarkup(it, m, ox, oy).replace(/ filter="[^"]*"/, '').replace('<use ', `<use ${tag} filter="url(#solid-${g})" `) + '\n';
+      } else if (shape === 'circle') {
+        body += `<circle ${tag} r="${n(Math.sqrt(w * h) / 2)}" transform="${tr}" fill="${color(g)}"/>\n`;
+      } else {
+        body += `<ellipse ${tag} rx="${n(w / 2)}" ry="${n(h / 2)}" transform="${tr}" fill="${color(g)}"/>\n`;
+      }
+    });
+  }
+  return `<?xml version="1.0" encoding="UTF-8"?>\n` +
+    `<svg xmlns="${SVGNS}" xmlns:xlink="${XLINKNS}" width="${mm(W)}" height="${mm(H)}" viewBox="0 0 ${n(W)} ${n(H)}" ` +
+    `data-seamly-template="1" data-seamly-tile-w="${n(W)}" data-seamly-tile-h="${n(H)}">\n` +
+    `<!-- Seamly template: each coloured shape is a spot for a motif; same colour = same motif. -->\n` +
+    `<defs>${defs}<clipPath id="tileClip"><rect width="${n(W)}" height="${n(H)}"/></clipPath></defs>\n` +
+    `<g clip-path="url(#tileClip)">\n${body}</g>\n</svg>\n`;
+}
+
+/**
+ * Exact spots from a Seamly template, in the template's own units.
+ * Geometry is measured from the shapes as they are now (so edits in other editors count).
+ * @returns {{spots: object[], tileW: number|null, tileH: number|null} | null}  null = not a Seamly template
+ */
+function readSeamlyTemplate(root, vbW, vbH) {
+  if (!root.querySelector('[data-seamly-spot]')) return null;
+  const holder = document.createElementNS(SVGNS, 'svg');
+  holder.setAttribute('style', 'position:absolute;left:-10000px;top:0;visibility:hidden');
+  const live = document.importNode(root, true);
+  live.setAttribute('width', vbW);
+  live.setAttribute('height', vbH);
+  holder.appendChild(live);
+  document.body.appendChild(holder);
+  const spots = [];
+  try {
+    const toRoot = live.getScreenCTM().inverse();
+    for (const el of live.querySelectorAll('[data-seamly-spot]')) {
+      const bb = el.getBBox();
+      if (!(bb.width > 0 && bb.height > 0)) continue;
+      const M = toRoot.multiply(el.getScreenCTM());
+      const c = new DOMPoint(bb.x + bb.width / 2, bb.y + bb.height / 2).matrixTransform(M);
+      const w = bb.width * Math.hypot(M.a, M.b), h = bb.height * Math.hypot(M.c, M.d);
+      const r = Math.atan2(M.b, M.a) * 180 / Math.PI;
+      const g = parseInt(el.getAttribute('data-seamly-group'), 10);
+      spots.push({
+        x: wrap(c.x, vbW), y: wrap(c.y, vbH),
+        // Long axis first; the angle follows the long axis, the way detected spots do.
+        len: Math.max(w, h), wid: Math.min(w, h), angle: w >= h ? r : r - 90,
+        area: w * h, round: false, g: Number.isFinite(g) ? g : undefined,
+        name: el.getAttribute('data-seamly-motif') || undefined,
+      });
+    }
+  } finally {
+    holder.remove();
+  }
+  const tw = parseFloat(root.getAttribute('data-seamly-tile-w')), th = parseFloat(root.getAttribute('data-seamly-tile-h'));
+  return { spots, tileW: tw > 0 ? tw : null, tileH: th > 0 ? th : null };
+}
+
 /** Load an SVG / PNG / JPG file into an analysis-sized canvas. @returns {Promise<{name, dataUrl, w, h}>} */
 async function loadTemplateFile(file) {
   const isSvg = /\.svg$/i.test(file.name) || file.type === 'image/svg+xml';
-  let img, natW, natH;
+  let img, natW, natH, exact = null;
   if (isSvg) {
     const doc = new DOMParser().parseFromString(await file.text(), 'image/svg+xml');
     const root = doc.documentElement;
@@ -17,6 +109,7 @@ async function loadTemplateFile(file) {
     natW = vb.length === 4 && vb[2] > 0 ? vb[2] : parseFloat(root.getAttribute('width')) || 1000;
     natH = vb.length === 4 && vb[3] > 0 ? vb[3] : parseFloat(root.getAttribute('height')) || 1000;
     if (!root.hasAttribute('viewBox')) root.setAttribute('viewBox', `0 0 ${natW} ${natH}`);
+    exact = readSeamlyTemplate(root, natW, natH);
     const sc = TEMPLATE_RES / Math.max(natW, natH);
     root.setAttribute('width', Math.round(natW * sc));
     root.setAttribute('height', Math.round(natH * sc));
@@ -36,7 +129,15 @@ async function loadTemplateFile(file) {
   c.width = w;
   c.height = h;
   c.getContext('2d').drawImage(img, 0, 0, w, h);
-  return { name: file.name, dataUrl: c.toDataURL('image/png'), w, h };
+  const out = { name: file.name, dataUrl: c.toDataURL('image/png'), w, h, exact: false };
+  if (exact && exact.spots.length) {
+    // Same units as detected spots: pixels of the analysis image.
+    out.exact = true;
+    out.spots = exact.spots.map(s => ({ ...s, x: s.x * sc, y: s.y * sc, len: s.len * sc, wid: s.wid * sc, area: s.area * sc * sc }));
+    out.tileW = exact.tileW;
+    out.tileH = exact.tileH;
+  }
+  return out;
 }
 
 async function templatePixels(tpl) {

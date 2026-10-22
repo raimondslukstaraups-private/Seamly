@@ -140,16 +140,25 @@
           <input id="tplInput" type="file" accept=".svg,.png,.jpg,.jpeg,.webp,image/*" hidden>
           <span id="tplThumbWrap" class="tpl-thumb" hidden><img id="tplThumb" alt=""></span>
           <strong id="tplName">Choose a template</strong>
-          <span>SVG with placeholder shapes, or a picture of a pattern</span>
+          <span>Seamly template, SVG with placeholder shapes, or a picture of a pattern</span>
         </label>
-        <div class="row two">
-          <label>Detection sensitivity <input id="tplSens" type="number" min="0" max="100" step="5"></label>
-          <label>Join parts closer than (px) <input id="tplMerge" type="number" min="0" max="40" step="1"></label>
+        <button id="tplFromLayout" type="button" class="full" title="Turn the layout you see now into the template">Use current layout as template</button>
+        <p id="tplExactInfo" class="hint" hidden>Seamly template: positions, sizes and angles are read exactly, so no detection is needed.</p>
+        <div id="tplDetect">
+          <div class="row two">
+            <label>Detection sensitivity <input id="tplSens" type="number" min="0" max="100" step="5"></label>
+            <label>Join parts closer than (px) <input id="tplMerge" type="number" min="0" max="40" step="1"></label>
+          </div>
+          <div class="row two">
+            <label>Ignore spots smaller than % <input id="tplMin" type="number" min="0" max="20" step="0.05"></label>
+            <span></span>
+          </div>
         </div>
         <div class="row two">
-          <label>Ignore spots smaller than % <input id="tplMin" type="number" min="0" max="20" step="0.05"></label>
           <label>Motif size % <input id="tplScale" type="number" min="10" max="300" step="5"></label>
+          <span></span>
         </div>
+        <label class="check" id="tplGroupsRow"><input id="tplGroups" type="checkbox"> Same colour = same motif</label>
         <div class="row">
           <label style="flex:1">Motif fits the spot
             <select id="tplFit">
@@ -162,7 +171,7 @@
         <label class="check"><input id="tplAngle" type="checkbox"> Turn motifs to match each spot</label>
         <label class="check"><input id="tplShrink" type="checkbox"> Shrink motifs that would overlap</label>
         <label class="check"><input id="tplShow" type="checkbox"> Show template behind the preview</label>
-        <p class="hint">Biggest spots get the biggest motifs. Use motif weights to change how many spots each one gets.</p>
+        <p class="hint">Biggest spots get the biggest motifs. Use motif weights to change how many spots each one gets. With "Same colour = same motif", each colour group gets one motif. Untick motifs you don't want, or untick this option to mix every motif in.</p>
       </div>
       <div class="row buttons">
         <button id="generate" class="primary" type="button">Generate</button>
@@ -193,6 +202,16 @@
         <button id="exportOutSvg" type="button">Output · SVG</button>
         <button id="exportOutPng" type="button">Output · PNG</button>
       </div>
+      <h3>Layout as template</h3>
+      <div class="btn-grid">
+        <select id="tplShape" title="Shape that replaces each motif">
+          <option value="ellipse">Ellipses</option>
+          <option value="circle">Circles</option>
+          <option value="silhouette">Silhouettes</option>
+        </select>
+        <button id="exportTemplate" type="button">Template · SVG</button>
+      </div>
+      <p class="hint">Saves this layout with each motif replaced by a coloured shape (one colour per motif). Open it later as a template to reuse the layout with other motifs.</p>
       <h3>Other</h3>
       <div class="btn-grid">
         <button id="copyCss" type="button">Copy CSS background</button>
@@ -222,7 +241,7 @@
         <button id="redo" type="button" title="Redo (Ctrl+Y)" disabled>↷ Redo</button>
       </span>
       <span class="spacer"></span>
-      <span class="hint inline">Click a motif to select · drag to move · drag a corner to resize · drag the round handle to rotate (<kbd>Shift</kbd> = 15° steps) · <kbd>Del</kbd> remove · <kbd>Ctrl</kbd>+<kbd>Z</kbd> undo</span>
+      <span class="hint inline">Click a motif to select (<kbd>Ctrl</kbd>+click for several, <kbd>Ctrl</kbd>+<kbd>A</kbd> all) · drag to move · drag a corner to resize · drag the round handle to rotate (<kbd>Shift</kbd> = 15° steps) · <kbd>Del</kbd> remove · <kbd>Ctrl</kbd>+<kbd>C</kbd> / <kbd>V</kbd> copy &amp; paste · <kbd>Ctrl</kbd>+<kbd>D</kbd> duplicate · <kbd>Ctrl</kbd>+<kbd>Z</kbd> undo</span>
     </div>
     <div id="stage" class="stage">
       <svg id="preview" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">

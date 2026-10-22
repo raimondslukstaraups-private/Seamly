@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="200mm" height="200mm" viewBox="0 0 755.906 755.906" data-seamly-template="1" data-seamly-tile-w="755.906" data-seamly-tile-h="755.906">
+<!-- Seamly template: each coloured shape is a spot for a motif; same colour = same motif.
+     Red = large spots, blue = medium, purple = small. Shapes crossing an edge repeat on the other side. -->
+<defs><clipPath id="tileClip"><rect width="755.906" height="755.906"/></clipPath></defs>
+<g clip-path="url(#tileClip)">
+<ellipse data-seamly-spot="1" data-seamly-group="0" rx="74.86" ry="61.58" transform="translate(492.05 54.76) rotate(2.9)" fill="#e4572e"/>
+<ellipse data-seamly-copy="1" rx="74.86" ry="61.58" transform="translate(492.05 810.66) rotate(2.9)" fill="#e4572e"/>
+<ellipse data-seamly-spot="1" data-seamly-group="0" rx="76.50" ry="62.01" transform="translate(68.57 320.90) rotate(26.1)" fill="#e4572e"/>
+<ellipse data-seamly-copy="1" rx="76.50" ry="62.01" transform="translate(824.48 320.90) rotate(26.1)" fill="#e4572e"/>
+<ellipse data-seamly-copy="1" rx="78.66" ry="67.61" transform="translate(-17.95 35.21) rotate(28.7)" fill="#e4572e"/>
+<ellipse data-seamly-spot="1" data-seamly-group="0" rx="78.66" ry="67.61" transform="translate(737.96 35.21) rotate(28.7)" fill="#e4572e"/>
+<ellipse data-seamly-copy="1" rx="78.66" ry="67.61" transform="translate(-17.95 791.12) rotate(28.7)" fill="#e4572e"/>
+<ellipse data-seamly-copy="1" rx="78.66" ry="67.61" transform="translate(737.96 791.12) rotate(28.7)" fill="#e4572e"/>
+<ellipse data-seamly-spot="1" data-seamly-group="0" rx="82.24" ry="68.02" transform="translate(439.64 482.96) rotate(-10.2)" fill="#e4572e"/>
+<ellipse data-seamly-spot="1" data-seamly-group="0" rx="80.21" ry="69.31" transform="translate(237.47 442.63) rotate(-3.7)" fill="#e4572e"/>
+<ellipse data-seamly-spot="1" data-seamly-group="1" rx="45.00" ry="34.15" transform="translate(528.37 184.51) rotate(6.0)" fill="#2e86ab"/>
+<ellipse data-seamly-spot="1" data-seamly-group="1" rx="51.80" ry="32.30" transform="translate(316.06 572.33) rotate(-27.8)" fill="#2e86ab"/>
+<ellipse data-seamly-copy="1" rx="49.01" ry="35.75" transform="translate(-5.22 621.30) rotate(-17.2)" fill="#2e86ab"/>
+<ellipse data-seamly-spot="1" data-seamly-group="1" rx="49.01" ry="35.75" transform="translate(750.69 621.30) rotate(-17.2)" fill="#2e86ab"/>
+<ellipse data-seamly-spot="1" data-seamly-group="1" rx="42.81" ry="29.53" transform="translate(415.32 667.76) rotate(25.5)" fill="#2e86ab"/>
+<ellipse data-seamly-spot="1" data-seamly-group="1" rx="50.64" ry="33.20" transform="translate(313.93 271.20) rotate(30.7)" fill="#2e86ab"/>
+<ellipse data-seamly-spot="1" data-seamly-group="1" rx="51.58" ry="32.50" transform="translate(133.20 175.34) rotate(-21.3)" fill="#2e86ab"/>
+<ellipse data-seamly-spot="1" data-seamly-group="1" rx="46.85" ry="33.63" transform="translate(198.61 3.09) rotate(-6.5)" fill="#2e86ab"/>
+<ellipse data-seamly-copy="1" rx="46.85" ry="33.63" transform="translate(198.61 759.00) rotate(-6.5)" fill="#2e86ab"/>
+<ellipse data-seamly-spot="1" data-seamly-group="1" rx="45.92" ry="31.22" transform="translate(78.26 479.46) rotate(-35.0)" fill="#2e86ab"/>
+<ellipse data-seamly-spot="1" data-seamly-group="1" rx="45.64" ry="27.61" transform="translate(660.91 464.18) rotate(-28.1)" fill="#2e86ab"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="19.51" ry="18.24" transform="translate(275.27 92.86) rotate(27.9)" fill="#7768ae"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="23.96" ry="22.68" transform="translate(365.73 64.92) rotate(-31.8)" fill="#7768ae"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="20.06" ry="18.58" transform="translate(626.54 122.03) rotate(-38.2)" fill="#7768ae"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="22.63" ry="21.57" transform="translate(588.89 249.20) rotate(-22.2)" fill="#7768ae"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="22.87" ry="22.83" transform="translate(644.51 609.32) rotate(25.5)" fill="#7768ae"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="22.16" ry="22.06" transform="translate(338.06 708.30) rotate(39.0)" fill="#7768ae"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="23.04" ry="21.84" transform="translate(493.59 604.46) rotate(-33.2)" fill="#7768ae"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="21.96" ry="21.77" transform="translate(591.35 567.04) rotate(-1.8)" fill="#7768ae"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="23.43" ry="22.98" transform="translate(110.49 624.76) rotate(38.4)" fill="#7768ae"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="19.27" ry="17.82" transform="translate(221.46 181.83) rotate(6.9)" fill="#7768ae"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="19.56" ry="18.42" transform="translate(99.08 687.89) rotate(-11.7)" fill="#7768ae"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="20.75" ry="19.88" transform="translate(683.56 317.96) rotate(33.4)" fill="#7768ae"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="19.03" ry="18.03" transform="translate(548.18 420.64) rotate(-13.9)" fill="#7768ae"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="21.36" ry="19.76" transform="translate(209.32 583.76) rotate(0.6)" fill="#7768ae"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="22.20" ry="21.92" transform="translate(712.20 196.23) rotate(4.8)" fill="#7768ae"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="19.91" ry="19.36" transform="translate(14.73 418.81) rotate(-4.8)" fill="#7768ae"/>
+<ellipse data-seamly-copy="1" rx="19.91" ry="19.36" transform="translate(770.63 418.81) rotate(-4.8)" fill="#7768ae"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="18.39" ry="18.36" transform="translate(595.93 734.51) rotate(-31.6)" fill="#7768ae"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="19.43" ry="17.70" transform="translate(122.04 38.08) rotate(-23.9)" fill="#7768ae"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="21.51" ry="20.50" transform="translate(567.34 497.04) rotate(17.3)" fill="#7768ae"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="19.59" ry="19.06" transform="translate(155.13 559.24) rotate(38.1)" fill="#7768ae"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="21.41" ry="19.29" transform="translate(45.85 203.17) rotate(13.8)" fill="#7768ae"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="18.15" ry="16.34" transform="translate(371.68 340.73) rotate(-15.8)" fill="#7768ae"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="18.84" ry="17.61" transform="translate(238.93 635.14) rotate(-39.9)" fill="#7768ae"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="22.28" ry="22.06" transform="translate(219.09 281.36) rotate(-8.6)" fill="#7768ae"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="21.07" ry="19.36" transform="translate(282.22 722.77) rotate(30.7)" fill="#7768ae"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="18.13" ry="16.38" transform="translate(536.32 677.06) rotate(-2.1)" fill="#7768ae"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="22.78" ry="22.19" transform="translate(381.64 155.13) rotate(37.6)" fill="#7768ae"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="22.56" ry="20.97" transform="translate(719.57 374.75) rotate(-25.0)" fill="#7768ae"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="22.48" ry="20.30" transform="translate(502.25 286.20) rotate(-10.1)" fill="#7768ae"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="18.24" ry="16.48" transform="translate(47.30 695.49) rotate(-19.4)" fill="#7768ae"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="18.58" ry="17.65" transform="translate(536.52 337.86) rotate(-21.3)" fill="#7768ae"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="19.84" ry="18.69" transform="translate(440.41 321.82) rotate(12.7)" fill="#7768ae"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="23.14" ry="23.13" transform="translate(553.39 616.06) rotate(-24.5)" fill="#7768ae"/>
+<ellipse data-seamly-copy="1" rx="23.30" ry="21.21" transform="translate(-5.33 476.05) rotate(-8.5)" fill="#7768ae"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="23.30" ry="21.21" transform="translate(750.58 476.05) rotate(-8.5)" fill="#7768ae"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="22.46" ry="20.32" transform="translate(619.71 191.74) rotate(11.1)" fill="#7768ae"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="21.85" ry="21.78" transform="translate(164.03 665.23) rotate(-38.8)" fill="#7768ae"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="22.48" ry="20.96" transform="translate(665.32 248.36) rotate(-20.9)" fill="#7768ae"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="19.72" ry="17.95" transform="translate(73.97 572.50) rotate(-23.6)" fill="#7768ae"/>
+<ellipse data-seamly-copy="1" rx="20.35" ry="19.87" transform="translate(92.52 -11.74) rotate(-11.6)" fill="#7768ae"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="20.35" ry="19.87" transform="translate(92.52 744.17) rotate(-11.6)" fill="#7768ae"/>
+<ellipse data-seamly-spot="1" data-seamly-group="2" rx="23.13" ry="20.95" transform="translate(625.81 684.70) rotate(22.7)" fill="#7768ae"/>
+</g>
+</svg>

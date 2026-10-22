@@ -30,17 +30,21 @@ const S = {
     name: '', dataUrl: '', w: 0, h: 0, spots: [],
     sensitivity: 50, merge: 3, minSize: 0.05, scale: 100, wrap: true, useAngle: true, show: true, shrink: true,
     fitMode: 'inside',
+    exact: false,      // read from a Seamly template (no detection)
+    useGroups: true,   // same colour = same motif
   },
+  tplShape: 'ellipse', // shape used when exporting the layout as a template
   // runtime
   motifs: [],
   instances: [],
-  selected: -1,
+  sel: new Set(), // indices of selected instances
   overlaps: new Set(),
   edited: false, // true after manual moves: settings changes then no longer auto-regenerate
 };
 
 const SAVED_KEYS = ['unit', 'W', 'H', 'gap', 'bg', 'bgNone', 'seed', 'maxCount', 'collision', 'effort',
-  'ensureEach', 'dpi', 'outW', 'outH', 'repeat', 'zoom', 'seams', 'layout', 'grid', 'tpl', 'globalScale', 'inside'];
+  'ensureEach', 'dpi', 'outW', 'outH', 'repeat', 'zoom', 'seams', 'layout', 'grid', 'tpl', 'globalScale', 'inside',
+  'tplShape'];
 const NESTED_KEYS = new Set(['grid', 'tpl']);
 const DEFAULTS = { grid: { ...S.grid }, tpl: { ...S.tpl } };
 
@@ -111,7 +115,7 @@ function generate(keepExisting) {
       }
     }
     S.instances = res.instances;
-    S.selected = -1;
+    S.sel = new Set();
     if (!keepExisting) S.edited = false;
     recheckOverlaps();
     const ms = Math.round(performance.now() - t0);
@@ -164,6 +168,7 @@ function syncInputs() {
   $('zoom').value = S.zoom;
   $('seams').checked = S.seams;
   $('globalScale').value = +S.globalScale.toFixed(1);
+  $('tplShape').value = S.tplShape;
   $('inside').checked = S.inside;
   for (const [id, key] of Object.entries(GRID_INPUTS)) {
     const el = $(id);
@@ -187,6 +192,7 @@ const TPL_DETECT_KEYS = new Set(['sensitivity', 'merge', 'minSize', 'wrap']);
 const TPL_INPUTS = {
   tplSens: 'sensitivity', tplMerge: 'merge', tplMin: 'minSize', tplScale: 'scale',
   tplWrap: 'wrap', tplAngle: 'useAngle', tplShow: 'show', tplShrink: 'shrink', tplFit: 'fitMode',
+  tplGroups: 'useGroups',
 };
 
 function syncLayoutMode() {
@@ -199,19 +205,35 @@ function syncTemplateInfo() {
   $('tplThumbWrap').hidden = !has;
   if (has) $('tplThumb').src = S.tpl.dataUrl;
   $('tplName').textContent = has ? `${S.tpl.name} — ${S.tpl.spots.length} spots` : 'Choose a template';
+  // Seamly templates are read exactly, so the detection settings do not apply.
+  $('tplDetect').hidden = !!S.tpl.exact;
+  $('tplExactInfo').hidden = !S.tpl.exact;
+  $('tplGroupsRow').hidden = !S.tpl.spots.some(sp => sp.g !== undefined);
 }
 
 async function loadTemplate(file) {
   try {
     const t = await loadTemplateFile(file);
-    Object.assign(S.tpl, t);
-    // Match the tile's proportions to the template so spots keep their shape.
-    const newH = S.W * t.h / t.w;
-    if (Math.abs(newH - S.H) > 0.5) {
-      S.H = newH;
-      $('tileH').value = fmt(S.H, S.unit);
-      toast('Tile height adjusted to match the template proportions');
+    Object.assign(S.tpl, {
+      name: t.name, dataUrl: t.dataUrl, w: t.w, h: t.h, exact: t.exact, spots: t.exact ? t.spots : [],
+    });
+    if (t.exact && t.tileW && t.tileH) {
+      // Seamly templates remember their tile size: use it, so spots keep their real size.
+      if (Math.abs(t.tileW - S.W) > 0.5 || Math.abs(t.tileH - S.H) > 0.5) {
+        S.W = t.tileW;
+        S.H = t.tileH;
+        toast(`Tile set to the template's size: ${fmt(S.W, S.unit)} × ${fmt(S.H, S.unit)} ${S.unit}`);
+      }
+    } else {
+      // Match the tile's proportions to the template so spots keep their shape.
+      const newH = S.W * t.h / t.w;
+      if (Math.abs(newH - S.H) > 0.5) {
+        S.H = newH;
+        toast('Tile height adjusted to match the template proportions');
+      }
     }
+    $('tileW').value = fmt(S.W, S.unit);
+    $('tileH').value = fmt(S.H, S.unit);
     S.layout = 'template';
     syncLayoutMode();
     await redetect();
@@ -223,7 +245,7 @@ async function loadTemplate(file) {
 
 async function redetect() {
   if (!S.tpl.dataUrl) return;
-  S.tpl.spots = await detectSpots(S.tpl, S.tpl);
+  if (!S.tpl.exact) S.tpl.spots = await detectSpots(S.tpl, S.tpl);
   syncTemplateInfo();
   S.edited = false;
   settingsChanged();
@@ -337,6 +359,15 @@ function bindControls() {
       if (TPL_DETECT_KEYS.has(key)) redetect(); else settingsChanged();
     });
   }
+  $('tplFromLayout').addEventListener('click', () => {
+    if (!visibleInstances(project()).length) { toast('Make a layout first, then turn it into a template.'); return; }
+    const svg = layoutTemplateSvg(project(), 'ellipse');
+    loadTemplate(new File([svg], 'Current layout', { type: 'image/svg+xml' }));
+  });
+  $('tplShape').addEventListener('change', e => { S.tplShape = e.target.value; autosave(); });
+  $('exportTemplate').addEventListener('click', () => guardExport(async () =>
+    downloadBlob(new Blob([layoutTemplateSvg(project(), S.tplShape)], { type: 'image/svg+xml' }), 'seamly-template.svg')));
+
   $('tplInput').addEventListener('change', e => {
     const f = e.target.files[0];
     e.target.value = '';
@@ -359,7 +390,7 @@ function bindControls() {
   $('fillGaps').addEventListener('click', () => generate(true));
   $('clearAll').addEventListener('click', () => {
     S.instances = [];
-    S.selected = -1;
+    S.sel = new Set();
     S.overlaps = new Set();
     S.edited = true;
     statusAfterChange();
@@ -478,7 +509,7 @@ function bindMotifList() {
     if (e.target.dataset.act === 'remove') {
       S.motifs = S.motifs.filter(m => m.id !== li.dataset.id);
       S.instances = S.instances.filter(i => i.m !== li.dataset.id);
-      S.selected = -1;
+      S.sel = new Set();
       renderMotifList();
       settingsChanged();
       return;
@@ -570,65 +601,86 @@ function bindPreview() {
 
   const MODE_CLASS = { move: 'dragging', resize: 'resizing', rotate: 'rotating' };
 
-  /** Handle of the selected motif under the pointer, if any. */
+  /** Selection handle under the pointer, if any. */
   const handleAt = p => {
-    const sel = S.instances[S.selected];
-    const m = sel && byId().get(sel.m);
-    return m ? hitHandle(sel, m, S.W, S.H, Preview.unitsPerPx(S), p.tx, p.ty) : null;
+    const sel = selList();
+    return sel.length ? hitHandle(S.instances, sel, byId(), S.W, S.H, Preview.unitsPerPx(S), p.tx, p.ty) : null;
   };
 
   svg.addEventListener('pointerdown', e => {
     if (e.button !== 0) return;
     const p = Preview.toTile(e, S.W, S.H);
-    let mode = handleAt(p);
-    let idx = S.selected;
+    const additive = e.ctrlKey || e.metaKey || e.shiftKey;
+    const handle = additive ? null : handleAt(p);
+    let mode = handle && handle.mode;
     if (!mode) {
-      idx = hitTest(S.instances, byId(), S.W, S.H, p.tx, p.ty);
-      S.selected = idx;
-      redraw();
-      if (idx < 0) return;
+      const idx = hitTest(S.instances, byId(), S.W, S.H, p.tx, p.ty);
+      if (additive) {
+        // Ctrl/Shift+click adds a motif to the selection or takes it out.
+        if (idx >= 0) {
+          S.sel = new Set(S.sel);
+          if (S.sel.has(idx)) S.sel.delete(idx); else S.sel.add(idx);
+        }
+        redraw();
+        return;
+      }
+      if (idx < 0) { S.sel = new Set(); redraw(); return; }
+      // Clicking a motif that is already selected keeps the group, so it can be dragged together.
+      if (!S.sel.has(idx)) S.sel = new Set([idx]);
       mode = 'move';
+      redraw();
     }
-    const inst = S.instances[idx];
-    // The copy of the motif nearest the pointer — rotate/resize are measured around its centre.
-    const cx = inst.x + S.W * Math.round((p.x - inst.x) / S.W);
-    const cy = inst.y + S.H * Math.round((p.y - inst.y) / S.H);
+    const sel = selList();
+    const g = groupLayout(S.instances, sel, byId(), S.W, S.H);
+    // Rotate/resize are measured around the centre of the motif whose handle was grabbed
+    // (its copy nearest the pointer); the same change is then applied to every selected motif.
+    const lead = handle ? S.instances[handle.i] : null;
+    const cx = lead ? lead.x + S.W * Math.round((p.x - lead.x) / S.W) : p.x;
+    const cy = lead ? lead.y + S.H * Math.round((p.y - lead.y) / S.H) : p.y;
     drag = {
-      mode, idx, sx: p.x, sy: p.y, ix: inst.x, iy: inst.y, is: inst.s, ir: inst.r, moved: false,
-      cx, cy,
+      mode, sx: p.x, sy: p.y, moved: false, cx, cy,
+      leadR: lead ? lead.r : 0,
       a0: Math.atan2(p.y - cy, p.x - cx),
       d0: Math.max(1e-6, Math.hypot(p.x - cx, p.y - cy)),
-      checker: checkerWithout(S.instances, idx, S.motifs, S.W, S.H, S.gap, S.collision),
+      start: g.items.map(it => ({ i: it.i, x: it.x, y: it.y, s: S.instances[it.i].s, r: S.instances[it.i].r })),
+      checker: checkerWithout(S.instances, new Set(sel), S.motifs, S.W, S.H, S.gap, S.collision),
     };
     try { svg.setPointerCapture(e.pointerId); } catch (_) { /* pointer already gone */ }
     svg.classList.add(MODE_CLASS[mode]);
   });
 
+  svg.addEventListener('pointerleave', () => { pointerTile = null; });
   svg.addEventListener('pointermove', e => {
+    const pt = Preview.toTile(e, S.W, S.H);
+    pointerTile = { x: pt.tx, y: pt.ty };
     if (drag) {
-      const p = Preview.toTile(e, S.W, S.H);
-      const inst = S.instances[drag.idx];
-      const m = byId().get(inst.m);
-      if (drag.mode === 'move') {
-        inst.x = wrap(drag.ix + p.x - drag.sx, S.W);
-        inst.y = wrap(drag.iy + p.y - drag.sy, S.H);
-        if (S.inside) {
-          // Slide along the edge instead of wrapping to the other side.
-          inst.x = drag.ix + p.x - drag.sx;
-          inst.y = drag.iy + p.y - drag.sy;
-        }
-      } else if (drag.mode === 'rotate') {
-        let r = drag.ir + (Math.atan2(p.y - drag.cy, p.x - drag.cx) - drag.a0) * 180 / Math.PI;
-        if (e.shiftKey) r = Math.round(r / 15) * 15;
-        inst.r = wrap(r, 360);
-      } else {
-        // Resize from the centre, keeping proportions.
-        inst.s = Math.max(0.01, drag.is * Math.hypot(p.x - drag.cx, p.y - drag.cy) / drag.d0);
+      const p = pt;
+      const ids = byId();
+      let ang = 0, k = 1;
+      if (drag.mode === 'rotate') {
+        ang = (Math.atan2(p.y - drag.cy, p.x - drag.cx) - drag.a0) * 180 / Math.PI;
+        // Shift snaps the grabbed motif to 15° steps; the others turn by the same amount.
+        if (e.shiftKey) ang = Math.round((drag.leadR + ang) / 15) * 15 - drag.leadR;
+      } else if (drag.mode === 'resize') {
+        k = Math.hypot(p.x - drag.cx, p.y - drag.cy) / drag.d0;
       }
-      if (S.inside) pushInside(inst, m, S.W, S.H, S.gap);
+      for (const st of drag.start) {
+        const inst = S.instances[st.i];
+        if (drag.mode === 'move') {
+          const x = st.x + p.x - drag.sx, y = st.y + p.y - drag.sy;
+          // With "keep inside", slide along the edge instead of wrapping to the other side.
+          inst.x = S.inside ? x : wrap(x, S.W);
+          inst.y = S.inside ? y : wrap(y, S.H);
+        } else {
+          // Every selected motif turns / grows around its own centre and stays where it is.
+          inst.r = wrap(st.r + ang, 360);
+          inst.s = Math.max(0.01, st.s * k);
+        }
+        const m = ids.get(inst.m);
+        if (S.inside) pushInside(inst, m, S.W, S.H, S.gap);
+        if (drag.checker.tryFit(inst, m)) S.overlaps.delete(st.i); else S.overlaps.add(st.i);
+      }
       drag.moved = true;
-      const fits = drag.checker.tryFit(inst, m);
-      if (fits) S.overlaps.delete(drag.idx); else S.overlaps.add(drag.idx);
       redraw();
       return;
     }
@@ -637,7 +689,8 @@ function bindPreview() {
     requestAnimationFrame(() => {
       hoverQueued = false;
       const p = Preview.toTile(e, S.W, S.H);
-      const h = handleAt(p);
+      const hit = handleAt(p);
+      const h = hit && hit.mode;
       svg.classList.toggle('on-resize', h === 'resize');
       svg.classList.toggle('on-rotate', h === 'rotate');
       svg.classList.toggle('hovering', !h && hitTest(S.instances, byId(), S.W, S.H, p.tx, p.ty) >= 0);
@@ -662,22 +715,52 @@ function bindPreview() {
       if (key === 'y' || e.shiftKey) History.redo(); else History.undo();
       return;
     }
+    if ((e.ctrlKey || e.metaKey) && key === 'a' && !e.target.closest?.('input, select, textarea')) {
+      e.preventDefault();
+      const ids = byId();
+      S.sel = new Set(S.instances.map((it, i) => (ids.get(it.m)?.settings.enabled ? i : -1)).filter(i => i >= 0));
+      redraw();
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && 'cxvd'.includes(key) && key.length === 1) {
+      const sel = selList();
+      if (key === 'v') {
+        if (!clip) return;
+        e.preventDefault();
+        pasteGroup(clip);
+        return;
+      }
+      if (!sel.length) return; // nothing selected: leave normal copy behaviour alone
+      e.preventDefault();
+      if (key === 'd') { pasteCount = 0; pasteGroup(sel.map(i => ({ ...S.instances[i] })), false); return; }
+      clip = sel.map(i => ({ ...S.instances[i] }));
+      pasteCount = 0;
+      const what = sel.length === 1 ? '' : ` ${sel.length} motifs`;
+      if (key === 'x') {
+        removeInstances(sel);
+        afterManualEdit();
+        toast(`Cut${what} — press Ctrl+V to paste`, 1500);
+      } else {
+        toast(`Copied${what} — press Ctrl+V to paste`, 1500);
+      }
+      return;
+    }
     if (e.target.closest?.('input, select, textarea')) return;
-    const inst = S.instances[S.selected];
-    if (e.key === 'Escape') { S.selected = -1; redraw(); return; }
-    if (!inst) return;
+    if (e.key === 'Escape') { S.sel = new Set(); redraw(); return; }
+    const sel = selList();
+    if (!sel.length) return;
     const step = e.shiftKey ? 1 : 15;
     if (e.key === 'Delete' || e.key === 'Backspace') {
-      S.instances.splice(S.selected, 1);
-      S.selected = -1;
-    } else if (e.key === '[') {
-      inst.r = wrap(inst.r - step, 360);
-    } else if (e.key === ']') {
-      inst.r = wrap(inst.r + step, 360);
-    } else if (e.key === '+' || e.key === '=') {
-      inst.s *= 1.05;
-    } else if (e.key === '-') {
-      inst.s /= 1.05;
+      removeInstances(sel);
+    } else if (['[', ']', '+', '=', '-'].includes(e.key)) {
+      // Each selected motif turns / grows around its own centre.
+      for (const i of sel) {
+        const inst = S.instances[i];
+        if (e.key === '[') inst.r = wrap(inst.r - step, 360);
+        else if (e.key === ']') inst.r = wrap(inst.r + step, 360);
+        else if (e.key === '-') inst.s /= 1.05;
+        else inst.s *= 1.05;
+      }
     } else {
       return;
     }
@@ -686,12 +769,58 @@ function bindPreview() {
   });
 }
 
+/** Selected indices that still point at a motif. */
+function selList() {
+  const ids = byId();
+  return [...S.sel].filter(i => S.instances[i] && ids.get(S.instances[i].m)).sort((a, b) => a - b);
+}
+
+function removeInstances(indices) {
+  const drop = new Set(indices);
+  S.instances = S.instances.filter((_, i) => !drop.has(i));
+  S.sel = new Set();
+}
+
+// ------------------------------------------------------------------ copy / paste
+
+let clip = null;          // copied motif instances
+let pasteCount = 0;       // successive pastes without a pointer position step further away
+let pointerTile = null;   // last pointer position over the preview (tile coords), or null
+
+/**
+ * Add copies of `items` (keeping their arrangement): centred on the mouse pointer if it is over
+ * the preview (paste only), otherwise offset from the originals. The copies become the selection.
+ */
+function pasteGroup(items, atPointer = true) {
+  const ids = byId();
+  items = items.filter(it => ids.has(it.m));
+  if (!items.length) { toast('Those motifs were removed'); return; }
+  const g = groupLayout(items, items.map((_, k) => k), ids, S.W, S.H);
+  let dx, dy;
+  if (atPointer && pointerTile) {
+    dx = pointerTile.x - g.cx;
+    dy = pointerTile.y - g.cy;
+  } else {
+    pasteCount++;
+    const size = Math.max(...items.map(it => { const m = ids.get(it.m); return Math.max(m.natW, m.natH) * it.s; }));
+    dx = dy = size * 0.25 * pasteCount;
+  }
+  const first = S.instances.length;
+  g.items.forEach((p, k) => {
+    const inst = { ...items[k], x: wrap(p.x + dx, S.W), y: wrap(p.y + dy, S.H) };
+    if (S.inside) pushInside(inst, ids.get(inst.m), S.W, S.H, S.gap);
+    S.instances.push(inst);
+  });
+  S.sel = new Set(items.map((_, k) => first + k));
+  afterManualEdit();
+}
+
 function afterManualEdit() {
   S.edited = true;
   recheckOverlaps();
   statusAfterChange();
   redraw();
-  autosave();
+  saveNow(); // each hand edit (drag, paste, delete…) is its own undo step, however quick
 }
 
 // ------------------------------------------------------------------ save / restore
@@ -722,7 +851,7 @@ async function restore(data) {
   S.instances = (data.instances || [])
     .filter(i => motifs[i.m])
     .map(i => ({ ...i, m: motifs[i.m].id }));
-  S.selected = -1;
+  S.sel = new Set();
   S.edited = !!data.edited;
   syncInputs();
   renderMotifList();
@@ -751,7 +880,7 @@ function saveNow() {
 // ------------------------------------------------------------------ undo / redo
 
 // View-only settings are not undo steps.
-const NOT_UNDOABLE = new Set(['unit', 'repeat', 'zoom', 'seams']);
+const NOT_UNDOABLE = new Set(['unit', 'repeat', 'zoom', 'seams', 'tplShape']);
 
 const History = {
   steps: [],      // snapshots, oldest first
@@ -814,7 +943,7 @@ const History = {
     });
     S.instances = snap.instances.map(i => ({ ...i }));
     S.edited = snap.edited;
-    S.selected = -1;
+    S.sel = new Set();
     syncInputs();
     renderMotifList();
     recheckOverlaps();

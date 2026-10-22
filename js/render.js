@@ -82,32 +82,64 @@ function selectionGeometry(inst, m, u) {
   };
 }
 
-/** Outline + handles for the selected instance, at every neighbouring tile offset (unclipped). */
-function selectionMarkup(inst, m, W, H, u) {
-  const g = selectionGeometry(inst, m, u);
+/** Shortest signed distance from a to b on a wrap-around axis of length `size`. */
+function wrapDelta(d, size) { return d - size * Math.round(d / size); }
+
+/**
+ * Selected instances laid out next to each other: each one's position is taken at the copy nearest
+ * the first, so a group that straddles a tile edge stays together.
+ * @returns {{ items: {i, x, y}[], cx, cy, box: {x0, y0, x1, y1} }}
+ */
+function groupLayout(instances, sel, byId, W, H) {
+  const a = instances[sel[0]];
+  const items = sel.map(i => {
+    const it = instances[i];
+    return { i, x: a.x + wrapDelta(it.x - a.x, W), y: a.y + wrapDelta(it.y - a.y, H) };
+  });
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const p of items) {
+    const it = instances[p.i], m = byId.get(it.m);
+    const { hw, hh } = rotatedHalfExtents(m.natW * it.s, m.natH * it.s, it.r);
+    x0 = Math.min(x0, p.x - hw); x1 = Math.max(x1, p.x + hw);
+    y0 = Math.min(y0, p.y - hh); y1 = Math.max(y1, p.y + hh);
+  }
+  return { items, cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, box: { x0, y0, x1, y1 } };
+}
+
+/** Outline + handles on every selected motif, at every neighbouring tile offset (unclipped). */
+function selectionMarkup(instances, sel, byId, W, H, u) {
   const r = HANDLE_PX * u;
   let s = '';
-  for (const [i, j] of TILE_OFFSETS) {
-    const ox = i * W, oy = j * H;
-    const pts = g.corners.map(([x, y]) => `${n(x + ox)},${n(y + oy)}`).join(' ');
-    s += `<polygon class="sel" points="${pts}"/>`;
-    s += `<line class="sel" x1="${n(g.top[0] + ox)}" y1="${n(g.top[1] + oy)}" x2="${n(g.rot[0] + ox)}" y2="${n(g.rot[1] + oy)}"/>`;
-    for (const [x, y] of g.corners) {
-      s += `<rect class="handle" x="${n(x + ox - r)}" y="${n(y + oy - r)}" width="${n(2 * r)}" height="${n(2 * r)}"/>`;
+  for (const k of sel) {
+    const it = instances[k];
+    const g = selectionGeometry(it, byId.get(it.m), u);
+    for (const [i, j] of TILE_OFFSETS) {
+      const ox = i * W, oy = j * H;
+      s += `<polygon class="sel" points="${g.corners.map(([x, y]) => `${n(x + ox)},${n(y + oy)}`).join(' ')}"/>`;
+      s += `<line class="sel" x1="${n(g.top[0] + ox)}" y1="${n(g.top[1] + oy)}" x2="${n(g.rot[0] + ox)}" y2="${n(g.rot[1] + oy)}"/>`;
+      for (const [x, y] of g.corners) {
+        s += `<rect class="handle" x="${n(x + ox - r)}" y="${n(y + oy - r)}" width="${n(2 * r)}" height="${n(2 * r)}"/>`;
+      }
+      s += `<circle class="handle rot" cx="${n(g.rot[0] + ox)}" cy="${n(g.rot[1] + oy)}" r="${n(r * 1.2)}"/>`;
     }
-    s += `<circle class="handle rot" cx="${n(g.rot[0] + ox)}" cy="${n(g.rot[1] + oy)}" r="${n(r * 1.2)}"/>`;
   }
   return s;
 }
 
-/** Which handle of the selected instance is under tile point (tx, ty)? 'rotate' | 'resize' | null */
-function hitHandle(inst, m, W, H, u, tx, ty) {
-  const g = selectionGeometry(inst, m, u);
+/**
+ * Which handle of which selected motif is under tile point (tx, ty)?
+ * @returns {{ mode: 'rotate'|'resize', i: number } | null}  i = index of the motif whose handle it is
+ */
+function hitHandle(instances, sel, byId, W, H, u, tx, ty) {
   const tol = (HANDLE_PX + 4) * u;
-  for (const [i, j] of TILE_OFFSETS) {
-    const ox = i * W, oy = j * H;
-    if (Math.hypot(tx - g.rot[0] - ox, ty - g.rot[1] - oy) <= tol * 1.2) return 'rotate';
-    for (const [x, y] of g.corners) if (Math.hypot(tx - x - ox, ty - y - oy) <= tol) return 'resize';
+  for (const k of [...sel].reverse()) { // topmost first
+    const it = instances[k];
+    const g = selectionGeometry(it, byId.get(it.m), u);
+    for (const [i, j] of TILE_OFFSETS) {
+      const ox = i * W, oy = j * H;
+      if (Math.hypot(tx - g.rot[0] - ox, ty - g.rot[1] - oy) <= tol * 1.2) return { mode: 'rotate', i: k };
+      for (const [x, y] of g.corners) if (Math.hypot(tx - x - ox, ty - y - oy) <= tol) return { mode: 'resize', i: k };
+    }
   }
   return null;
 }
@@ -162,7 +194,7 @@ const Preview = {
   },
 
   /**
-   * @param {object} st  { motifs, instances, W, H, bg, bgNone, repeat, zoom, seams, selected, overlaps }
+   * @param {object} st  { motifs, instances, W, H, bg, bgNone, repeat, zoom, seams, sel (Set of indices), overlaps }
    */
   draw(st) {
     const { W, H, repeat: r } = st;
@@ -185,8 +217,8 @@ const Preview = {
       if (m) overlay += outlineMarkup(inst, m, W, H, 'bad');
     });
     overlay = `<g clip-path="url(#pvClip)">${overlay}</g>`;
-    const sel = st.instances[st.selected];
-    if (sel && byId.get(sel.m)) overlay += selectionMarkup(sel, byId.get(sel.m), W, H, u);
+    const sel = [...st.sel].filter(i => st.instances[i] && byId.get(st.instances[i].m));
+    if (sel.length) overlay += selectionMarkup(st.instances, sel, byId, W, H, u);
     document.getElementById('pvOverlay').innerHTML = overlay;
 
     // All tiles first, then all overlays, so handles are never hidden under a neighbouring tile.

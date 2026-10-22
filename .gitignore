@@ -8,8 +8,8 @@ Thumbs.db
 .DS_Store
 desktop.ini
 
-# Exports made while testing
-seamly-*.svg
-seamly-*.png
-seamly-*.css
-seamly-project*.json
+# Exports made while testing (top folder only, so examples in subfolders are kept)
+/seamly-*.svg
+/seamly-*.png
+/seamly-*.css
+/seamly-project*.json
