@@ -17,10 +17,21 @@
     <section class="panel">
       <h2>1. Motifs</h2>
       <label id="dropzone" class="dropzone">
-        <input id="fileInput" type="file" accept=".svg,image/svg+xml" multiple hidden>
-        <strong>Drop SVG files here</strong>
-        <span>or click to choose</span>
+        <input id="fileInput" type="file" accept=".svg,.png,.jpg,.jpeg,.webp,image/svg+xml,image/png,image/jpeg,image/webp" multiple hidden>
+        <strong>Drop SVG or PNG files here</strong>
+        <span>or click to choose · PNGs with a transparent background work best</span>
       </label>
+      <div class="row global-size">
+        <!-- Not a wrapping <label>: clicking label text would press the first button inside it. -->
+        <div class="field">
+          <label for="globalScale">All motifs size %</label>
+          <span class="seed-row">
+            <button id="globalDown" type="button" title="Make all motifs smaller">−</button>
+            <input id="globalScale" type="number" min="5" max="1000" step="5">
+            <button id="globalUp" type="button" title="Make all motifs bigger">+</button>
+          </span>
+        </div>
+      </div>
       <ul id="motifList" class="motif-list"></ul>
     </section>
 
@@ -43,19 +54,27 @@
       </div>
       <div class="row two">
         <label>Min. gap <input id="gap" type="number" min="0" step="any"></label>
-        <label>Background
+        <div class="field">
+          <label for="bg">Background</label>
           <span class="color-row">
             <input id="bg" type="color" value="#fdf6ec">
             <label class="check"><input id="bgNone" type="checkbox"> none</label>
           </span>
-        </label>
+        </div>
       </div>
-      <p class="hint">The tile is the unit that repeats. Motifs that cross an edge come back in on the opposite side.</p>
+      <label class="check"><input id="inside" type="checkbox"> Keep motifs inside the tile (none cut off at the edges)</label>
+      <p class="hint">The tile is the unit that repeats. Normally motifs that cross an edge come back in on the opposite side. Keep them inside when each tile is printed on its own. In a brick grid, motifs that would be cut are left out.</p>
     </section>
 
-    <!-- 3. Scatter -->
+    <!-- 3. Layout -->
     <section class="panel">
-      <h2>3. Scatter</h2>
+      <h2>3. Layout</h2>
+      <div class="segmented" id="layoutMode" role="radiogroup">
+        <button type="button" data-mode="scatter">Random</button>
+        <button type="button" data-mode="grid">Brick grid</button>
+        <button type="button" data-mode="template">Template</button>
+      </div>
+
       <div class="row two">
         <label>Seed
           <span class="seed-row">
@@ -63,24 +82,88 @@
             <button id="shuffle" type="button" title="New random seed">🎲</button>
           </span>
         </label>
-        <label>Max motifs <input id="maxCount" type="number" min="0" step="1" title="0 = fill the tile"></label>
-      </div>
-      <div class="row two">
         <label>Overlap check
           <select id="collision">
             <option value="shape" selected>Real shape</option>
             <option value="circle">Circle (fast)</option>
           </select>
         </label>
-        <label>Effort
-          <select id="effort">
-            <option value="300">Quick</option>
-            <option value="1000" selected>Normal</option>
-            <option value="4000">Dense</option>
-          </select>
-        </label>
       </div>
-      <label class="check"><input id="ensureEach" type="checkbox" checked> Use every motif at least once</label>
+
+      <div class="mode-panel" data-for="scatter">
+        <div class="row two">
+          <label>Max motifs <input id="maxCount" type="number" min="0" step="1" title="0 = fill the tile"></label>
+          <label>Effort
+            <select id="effort">
+              <option value="300">Quick</option>
+              <option value="1000" selected>Normal</option>
+              <option value="4000">Dense</option>
+            </select>
+          </label>
+        </div>
+        <label class="check"><input id="ensureEach" type="checkbox" checked> Use every motif at least once</label>
+      </div>
+
+      <div class="mode-panel" data-for="grid">
+        <div class="row two">
+          <label>Columns per tile <input id="gridCols" type="number" min="1" max="100" step="1"></label>
+          <label>Rows per tile <input id="gridRows" type="number" min="1" max="100" step="1"></label>
+        </div>
+        <div class="row two">
+          <label>Row shift
+            <select id="gridShift">
+              <option value="0">None (straight grid)</option>
+              <option value="0.5">½ step (brick)</option>
+              <option value="0.3333333333333333">⅓ step</option>
+              <option value="0.25">¼ step</option>
+            </select>
+          </label>
+          <label>Angle °
+            <input id="gridAngle" type="number" min="-90" max="90" step="1">
+          </label>
+        </div>
+        <div class="row two">
+          <label>Motif order
+            <select id="gridOrder">
+              <option value="random">Random (by weight)</option>
+              <option value="sequence">In sequence</option>
+            </select>
+          </label>
+          <label>Random offset % <input id="gridJitter" type="number" min="0" max="100" step="5"></label>
+        </div>
+        <label class="check"><input id="gridFit" type="checkbox"> Fit motif size to the grid</label>
+        <label class="check"><input id="gridRotate" type="checkbox"> Tilt motifs with the grid angle</label>
+      </div>
+
+      <div class="mode-panel" data-for="template">
+        <label class="dropzone small" id="tplDrop">
+          <input id="tplInput" type="file" accept=".svg,.png,.jpg,.jpeg,.webp,image/*" hidden>
+          <span id="tplThumbWrap" class="tpl-thumb" hidden><img id="tplThumb" alt=""></span>
+          <strong id="tplName">Choose a template</strong>
+          <span>SVG with placeholder shapes, or a picture of a pattern</span>
+        </label>
+        <div class="row two">
+          <label>Detection sensitivity <input id="tplSens" type="number" min="0" max="100" step="5"></label>
+          <label>Join parts closer than (px) <input id="tplMerge" type="number" min="0" max="40" step="1"></label>
+        </div>
+        <div class="row two">
+          <label>Ignore spots smaller than % <input id="tplMin" type="number" min="0" max="20" step="0.05"></label>
+          <label>Motif size % <input id="tplScale" type="number" min="10" max="300" step="5"></label>
+        </div>
+        <div class="row">
+          <label style="flex:1">Motif fits the spot
+            <select id="tplFit">
+              <option value="inside">Inside the spot</option>
+              <option value="area">Same area as the spot</option>
+            </select>
+          </label>
+        </div>
+        <label class="check"><input id="tplWrap" type="checkbox"> Template is a seamless tile</label>
+        <label class="check"><input id="tplAngle" type="checkbox"> Turn motifs to match each spot</label>
+        <label class="check"><input id="tplShrink" type="checkbox"> Shrink motifs that would overlap</label>
+        <label class="check"><input id="tplShow" type="checkbox"> Show template behind the preview</label>
+        <p class="hint">Biggest spots get the biggest motifs. Use motif weights to change how many spots each one gets.</p>
+      </div>
       <div class="row buttons">
         <button id="generate" class="primary" type="button">Generate</button>
         <button id="fillGaps" type="button" title="Keep current motifs, add more in free space">Fill gaps</button>
@@ -134,12 +217,17 @@
       </label>
       <label>Zoom <input id="zoom" type="range" min="0.2" max="3" step="0.05" value="1"></label>
       <label class="check"><input id="seams" type="checkbox" checked> Show tile edges</label>
+      <span class="undo-group">
+        <button id="undo" type="button" title="Undo (Ctrl+Z)" disabled>↶ Undo</button>
+        <button id="redo" type="button" title="Redo (Ctrl+Y)" disabled>↷ Redo</button>
+      </span>
       <span class="spacer"></span>
-      <span class="hint inline">Click a motif to select · drag to move · <kbd>Del</kbd> remove · <kbd>[</kbd> <kbd>]</kbd> rotate</span>
+      <span class="hint inline">Click a motif to select · drag to move · drag a corner to resize · drag the round handle to rotate (<kbd>Shift</kbd> = 15° steps) · <kbd>Del</kbd> remove · <kbd>Ctrl</kbd>+<kbd>Z</kbd> undo</span>
     </div>
     <div id="stage" class="stage">
       <svg id="preview" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
         <defs id="pvDefs"></defs>
+        <defs id="pvStatic"></defs>
         <defs>
           <g id="pvTile"></g>
           <g id="pvOverlay"></g>
@@ -161,6 +249,7 @@
   <script src="js/motifs.js"></script>
   <script src="js/collision.js"></script>
   <script src="js/layout.js"></script>
+  <script src="js/template.js"></script>
   <script src="js/render.js"></script>
   <script src="js/export.js"></script>
   <script src="js/app.js"></script>

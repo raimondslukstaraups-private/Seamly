@@ -29,6 +29,7 @@ const KEEP_ATTR_NS = new Set([XLINKNS, 'http://www.w3.org/XML/1998/namespace']);
  * @returns {Promise<object>} motif { id, name, source, inner, box, natW, natH, svgText, img, settings }
  */
 async function createMotif(text, name, settings) {
+  if (/^data:image\/(?!svg)/.test(text)) return createRasterMotif(text, name, settings);
   const doc = new DOMParser().parseFromString(text, 'image/svg+xml');
   const root = doc.documentElement;
   if (doc.getElementsByTagName('parsererror').length || !root || root.localName !== 'svg' || root.namespaceURI !== SVGNS) {
@@ -94,6 +95,70 @@ async function createMotif(text, name, settings) {
     settings: Object.assign({}, DEFAULT_MOTIF_SETTINGS, settings || {}),
     _mask: null,
   };
+}
+
+/**
+ * PNG / JPG / WebP motif: the picture is embedded in an SVG <image>, so everything else
+ * (placement, hue, export) works the same. Transparent margins are trimmed off.
+ * @param {string} dataUrl  the original file as a data URL (kept unchanged for full quality)
+ */
+async function createRasterMotif(dataUrl, name, settings) {
+  const img = await loadImage(dataUrl).catch(() => { throw new Error(`${name}: could not read the image`); });
+  const iw = img.naturalWidth, ih = img.naturalHeight;
+  if (!iw || !ih) throw new Error(`${name}: the image is empty`);
+
+  // Find the painted area on a downscaled copy (fast even for big photos).
+  const sc = Math.min(1, 1024 / Math.max(iw, ih));
+  const cw = Math.max(1, Math.round(iw * sc)), ch = Math.max(1, Math.round(ih * sc));
+  const c = document.createElement('canvas');
+  c.width = cw;
+  c.height = ch;
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(img, 0, 0, cw, ch);
+  const px = ctx.getImageData(0, 0, cw, ch).data;
+  let x0 = cw, y0 = ch, x1 = -1, y1 = -1;
+  for (let y = 0; y < ch; y++) {
+    for (let x = 0; x < cw; x++) {
+      if (px[(y * cw + x) * 4 + 3] > 12) {
+        if (x < x0) x0 = x; if (x > x1) x1 = x;
+        if (y < y0) y0 = y; if (y > y1) y1 = y;
+      }
+    }
+  }
+  if (x1 < 0) throw new Error(`${name}: the image is fully transparent`);
+  const box = {
+    x: Math.max(0, (x0 - 1) / sc), y: Math.max(0, (y0 - 1) / sc),
+    w: Math.min(iw, (x1 + 2) / sc) - Math.max(0, (x0 - 1) / sc),
+    h: Math.min(ih, (y1 + 2) / sc) - Math.max(0, (y0 - 1) / sc),
+  };
+
+  const dpi = pngDpi(dataUrl) || 96;
+  const k = 96 / dpi; // CSS px per image pixel
+  const id = 'm' + (++motifSeq);
+  const inner = `<g><image href="${dataUrl}" xlink:href="${dataUrl}" width="${iw}" height="${ih}"/></g>`;
+  const natW = box.w * k, natH = box.h * k;
+  const svgText =
+    `<svg xmlns="${SVGNS}" xmlns:xlink="${XLINKNS}" viewBox="${n(box.x)} ${n(box.y)} ${n(box.w)} ${n(box.h)}" ` +
+    `width="${n(natW)}" height="${n(natH)}">${inner}</svg>`;
+  const rendered = await loadImage(svgDataUrl(svgText));
+  return {
+    id, name, source: dataUrl, inner, box, k, natW, natH, svgText, img: rendered,
+    thumbUrl: dataUrl,
+    settings: Object.assign({}, DEFAULT_MOTIF_SETTINGS, settings || {}),
+    _mask: null,
+  };
+}
+
+/** DPI stored in a PNG's pHYs chunk, or null. */
+function pngDpi(dataUrl) {
+  if (!dataUrl.startsWith('data:image/png;base64,')) return null;
+  const bin = atob(dataUrl.slice(22, 22 + 4096)); // pHYs sits near the start
+  const at = bin.indexOf('pHYs');
+  if (at < 0 || bin.charCodeAt(at + 12) !== 1) return null; // unit must be metres
+  const ppm = ((bin.charCodeAt(at + 4) << 24) | (bin.charCodeAt(at + 5) << 16) |
+    (bin.charCodeAt(at + 6) << 8) | bin.charCodeAt(at + 7)) >>> 0;
+  const dpi = ppm * 0.0254;
+  return dpi >= 20 && dpi <= 2400 ? dpi : null;
 }
 
 /** Remove editor metadata, foreign-namespace elements/attributes, scripts and event handlers. */

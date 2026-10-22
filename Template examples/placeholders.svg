@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="600" height="600">
+  <!-- Seamless template: each shape is a spot for a motif. Shapes crossing an edge are repeated on the opposite side. -->
+  <g fill="#333">
+    <ellipse cx="120" cy="110" rx="80" ry="55" transform="rotate(-20 120 110)"/>
+    <ellipse cx="350" cy="90" rx="45" ry="45"/>
+    <ellipse cx="500" cy="230" rx="70" ry="40" transform="rotate(35 500 230)"/>
+    <ellipse cx="260" cy="280" rx="95" ry="60" transform="rotate(10 260 280)"/>
+    <circle cx="90" cy="330" r="28"/>
+    <rect x="380" y="380" width="90" height="60" rx="10" transform="rotate(-30 425 410)"/>
+    <ellipse cx="170" cy="490" rx="75" ry="50" transform="rotate(60 170 490)"/>
+    <circle cx="320" cy="470" r="22"/>
+    <circle cx="540" cy="540" r="25"/>
+    <!-- crosses the right edge -> repeated at the left -->
+    <ellipse cx="590" cy="400" rx="50" ry="35" transform="rotate(80 590 400)"/>
+    <ellipse cx="-10" cy="400" rx="50" ry="35" transform="rotate(80 -10 400)"/>
+    <!-- crosses the bottom edge -> repeated at the top -->
+    <ellipse cx="420" cy="590" rx="40" ry="28"/>
+    <ellipse cx="420" cy="-10" rx="40" ry="28"/>
+  </g>
+</svg>

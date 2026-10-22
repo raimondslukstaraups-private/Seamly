@@ -100,6 +100,19 @@ button:disabled { opacity: 0.5; cursor: default; }
 .status .bad { color: var(--danger); font-weight: 600; }
 .foot { font-size: 11px; color: var(--muted); text-align: center; padding: 4px 0 12px; }
 
+/* ---------- Layout modes ---------- */
+.segmented { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 2px; margin-bottom: 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--field); }
+.segmented button { border: 0; background: transparent; padding: 6px 4px; }
+.segmented button.active { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.mode-panel { display: none; }
+.mode-panel.active { display: block; }
+.mode-panel .check { margin-top: 4px; }
+.dropzone.small { padding: 10px; margin-bottom: 8px; }
+.dropzone.small span { font-size: 11px; }
+.tpl-thumb { display: block; margin-bottom: 4px; }
+.tpl-thumb img { max-width: 100%; max-height: 90px; border-radius: 4px; border: 1px solid var(--line); background: #fff; }
+.tpl-thumb[hidden] { display: none; }
+
 /* ---------- Motif list ---------- */
 .dropzone {
   display: flex;
@@ -115,6 +128,11 @@ button:disabled { opacity: 0.5; cursor: default; }
 }
 .dropzone strong { color: var(--ink); font-size: 13px; }
 .dropzone.over, body.dragging .dropzone { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.global-size { margin: 10px 0 0; }
+.field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.global-size .field { flex: 1; }
+.global-size input { text-align: center; }
+.global-size button { padding: 6px 12px; }
 .motif-list { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .motif {
   border: 1px solid var(--line);
@@ -150,6 +168,8 @@ button:disabled { opacity: 0.5; cursor: default; }
 .toolbar label { flex-direction: row; align-items: center; gap: 6px; color: var(--ink); }
 .toolbar select { width: auto; }
 .toolbar .spacer { flex: 1; }
+.undo-group { display: inline-flex; gap: 4px; }
+.undo-group button { padding: 4px 10px; }
 kbd { font: 11px ui-monospace, monospace; padding: 1px 4px; border: 1px solid var(--line); border-radius: 3px; background: var(--field); }
 .stage {
   position: relative;
@@ -164,6 +184,8 @@ kbd { font: 11px ui-monospace, monospace; padding: 1px 4px; border: 1px solid va
 #preview { display: block; box-shadow: 0 2px 16px rgba(0,0,0,.18); touch-action: none; cursor: default; background: transparent; }
 #preview.hovering { cursor: grab; }
 #preview.dragging { cursor: grabbing; }
+#preview.on-resize, #preview.resizing { cursor: nwse-resize; }
+#preview.on-rotate, #preview.rotating { cursor: crosshair; }
 .empty {
   position: absolute; inset: 0;
   display: grid; place-content: center; text-align: center;

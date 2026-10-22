@@ -64,7 +64,73 @@ function outlineMarkup(inst, m, W, H, cls) {
   return s;
 }
 
+// ---------------------------------------------------------------- selection handles
+
+const HANDLE_PX = 5;          // handle radius on screen
+const ROT_HANDLE_GAP_PX = 26; // distance of the rotate handle above the motif
+const TILE_OFFSETS = [-1, 0, 1].flatMap(j => [-1, 0, 1].map(i => [i, j]));
+
+/** Corners, top-middle and rotate-handle positions of an instance (tile coords). `u` = units per screen px. */
+function selectionGeometry(inst, m, u) {
+  const w = m.natW * inst.s, h = m.natH * inst.s;
+  const rad = inst.r * Math.PI / 180, c = Math.cos(rad), s = Math.sin(rad);
+  const at = (lx, ly) => [inst.x + lx * c - ly * s, inst.y + lx * s + ly * c];
+  return {
+    corners: [at(-w / 2, -h / 2), at(w / 2, -h / 2), at(w / 2, h / 2), at(-w / 2, h / 2)],
+    top: at(0, -h / 2),
+    rot: at(0, -h / 2 - ROT_HANDLE_GAP_PX * u),
+  };
+}
+
+/** Outline + handles for the selected instance, at every neighbouring tile offset (unclipped). */
+function selectionMarkup(inst, m, W, H, u) {
+  const g = selectionGeometry(inst, m, u);
+  const r = HANDLE_PX * u;
+  let s = '';
+  for (const [i, j] of TILE_OFFSETS) {
+    const ox = i * W, oy = j * H;
+    const pts = g.corners.map(([x, y]) => `${n(x + ox)},${n(y + oy)}`).join(' ');
+    s += `<polygon class="sel" points="${pts}"/>`;
+    s += `<line class="sel" x1="${n(g.top[0] + ox)}" y1="${n(g.top[1] + oy)}" x2="${n(g.rot[0] + ox)}" y2="${n(g.rot[1] + oy)}"/>`;
+    for (const [x, y] of g.corners) {
+      s += `<rect class="handle" x="${n(x + ox - r)}" y="${n(y + oy - r)}" width="${n(2 * r)}" height="${n(2 * r)}"/>`;
+    }
+    s += `<circle class="handle rot" cx="${n(g.rot[0] + ox)}" cy="${n(g.rot[1] + oy)}" r="${n(r * 1.2)}"/>`;
+  }
+  return s;
+}
+
+/** Which handle of the selected instance is under tile point (tx, ty)? 'rotate' | 'resize' | null */
+function hitHandle(inst, m, W, H, u, tx, ty) {
+  const g = selectionGeometry(inst, m, u);
+  const tol = (HANDLE_PX + 4) * u;
+  for (const [i, j] of TILE_OFFSETS) {
+    const ox = i * W, oy = j * H;
+    if (Math.hypot(tx - g.rot[0] - ox, ty - g.rot[1] - oy) <= tol * 1.2) return 'rotate';
+    for (const [x, y] of g.corners) if (Math.hypot(tx - x - ox, ty - y - oy) <= tol) return 'resize';
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------- preview
+
+/** Faint template image behind the motifs (preview only, never exported). */
+function templateUnderlay(st) {
+  if (st.layout !== 'template' || !st.tpl.show || !st.tpl.dataUrl) return '';
+  // The (large) image lives in one static element; the tile only references it.
+  let img = document.getElementById('pvTplImg');
+  if (!img) {
+    img = document.createElementNS(SVGNS, 'image');
+    img.id = 'pvTplImg';
+    img.setAttribute('preserveAspectRatio', 'none');
+    img.setAttribute('opacity', '0.35');
+    document.getElementById('pvStatic').appendChild(img);
+  }
+  if (img.getAttribute('href') !== st.tpl.dataUrl) img.setAttribute('href', st.tpl.dataUrl);
+  img.setAttribute('width', n(st.W));
+  img.setAttribute('height', n(st.H));
+  return '<use href="#pvTplImg"/>';
+}
 
 const Preview = {
   svg: null,
@@ -76,6 +142,8 @@ const Preview = {
     const style = document.createElementNS(SVGNS, 'style');
     style.textContent = `
       .sel { fill: none; stroke: #1a7cff; stroke-width: 2; vector-effect: non-scaling-stroke; }
+      .handle { fill: #fff; stroke: #1a7cff; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+      .handle.rot { fill: #1a7cff; stroke: #fff; }
       .bad { fill: rgba(220,40,40,.12); stroke: #e02020; stroke-width: 2; stroke-dasharray: 5 3; vector-effect: non-scaling-stroke; }
       .seam { stroke: rgba(0,0,0,.45); stroke-width: 1; stroke-dasharray: 6 4; vector-effect: non-scaling-stroke; }
       .seam2 { stroke: rgba(255,255,255,.6); stroke-width: 1; stroke-dasharray: 6 4; stroke-dashoffset: 6; vector-effect: non-scaling-stroke; }`;
@@ -104,24 +172,32 @@ const Preview = {
     document.getElementById('pvTile').innerHTML =
       `<clipPath id="pvClip"><rect width="${n(W)}" height="${n(H)}"/></clipPath>` +
       hueFiltersMarkup(st.instances, byId) +
-      `<g clip-path="url(#pvClip)">${tileUsesMarkup(st.instances, byId, W, H)}</g>`;
+      `<g clip-path="url(#pvClip)">${templateUnderlay(st)}${tileUsesMarkup(st.instances, byId, W, H)}</g>`;
+
+    // Size first: handle sizes depend on how many tile units one screen pixel is.
+    this.svg.setAttribute('viewBox', `0 0 ${n(r * W)} ${n(r * H)}`);
+    this.fit(st);
+    const u = this.unitsPerPx(st);
 
     let overlay = '';
     st.overlaps.forEach(i => {
       const inst = st.instances[i], m = inst && byId.get(inst.m);
       if (m) overlay += outlineMarkup(inst, m, W, H, 'bad');
     });
+    overlay = `<g clip-path="url(#pvClip)">${overlay}</g>`;
     const sel = st.instances[st.selected];
-    if (sel && byId.get(sel.m)) overlay += outlineMarkup(sel, byId.get(sel.m), W, H, 'sel');
-    document.getElementById('pvOverlay').innerHTML = `<g clip-path="url(#pvClip)">${overlay}</g>`;
+    if (sel && byId.get(sel.m)) overlay += selectionMarkup(sel, byId.get(sel.m), W, H, u);
+    document.getElementById('pvOverlay').innerHTML = overlay;
 
-    let copies = '';
+    // All tiles first, then all overlays, so handles are never hidden under a neighbouring tile.
+    let tiles = '', overlays = '';
     for (let j = 0; j < r; j++) {
       for (let i = 0; i < r; i++) {
-        copies += `<use href="#pvTile" x="${n(i * W)}" y="${n(j * H)}"/><use href="#pvOverlay" x="${n(i * W)}" y="${n(j * H)}"/>`;
+        tiles += `<use href="#pvTile" x="${n(i * W)}" y="${n(j * H)}"/>`;
+        overlays += `<use href="#pvOverlay" x="${n(i * W)}" y="${n(j * H)}"/>`;
       }
     }
-    document.getElementById('pvCopies').innerHTML = copies;
+    document.getElementById('pvCopies').innerHTML = tiles + overlays;
 
     let seams = '';
     if (st.seams) {
@@ -138,9 +214,12 @@ const Preview = {
     bg.setAttribute('width', n(r * W));
     bg.setAttribute('height', n(r * H));
     bg.setAttribute('fill', st.bgNone ? 'none' : st.bg);
+  },
 
-    this.svg.setAttribute('viewBox', `0 0 ${n(r * W)} ${n(r * H)}`);
-    this.fit(st);
+  /** Tile units per screen pixel at the current size and zoom. */
+  unitsPerPx(st) {
+    const px = parseFloat(this.svg.style.width) || this.svg.clientWidth || 1;
+    return (st.repeat * st.W) / px;
   },
 
   /** Size the preview to the stage, times the zoom factor. */
